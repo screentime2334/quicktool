@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JPG to PDF – Images to PDF Converter | QuickTool</title>
+  <meta name="description" content="Free JPG/PNG to PDF converter. Upload multiple images, preview, and download as single multi-page PDF. No signup, browser-only.">
+  <link rel="canonical" href="https://quicktool.pages.dev/jpg-to-pdf.html">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: rgba(0,0,0,0.8); border-radius: 20px; padding: 30px; color: white; }
+    h1 { text-align: center; margin-bottom: 10px; font-size: 1.8em; }
+    .subtitle { text-align: center; opacity: 0.9; margin-bottom: 30px; }
+    #upload { display: none; }
+    label[for="upload"] { display: block; border: 3px dashed #4ade80; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    label[for="upload"]:hover { background: rgba(74, 222, 128, 0.1); border-color: #22c55e; }
+    label[for="upload"].dragover { border-color: #22c55e; background: rgba(74, 222, 128, 0.2); }
+    #fileInfo { margin: 20px 0; text-align: center; font-weight: bold; color: #4ade80; }
+    #imagesPreview { display: flex; flex-wrap: wrap; gap: 15px; margin: 20px 0; }
+    .image-preview { position: relative; width: 150px; height: 150px; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .remove-img { position: absolute; top: 5px; right: 5px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; font-size: 12px; }
+    #convertBtn { width: 100%; background: linear-gradient(135deg, #4ade80, #22c55e); color: white; border: none; padding: 15px; border-radius: 15px; font-size: 1.2em; cursor: pointer; margin: 20px 0; transition: transform 0.2s; }
+    #convertBtn:hover:not(:disabled) { transform: scale(1.02); }
+    #convertBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #progress { display: none; text-align: center; margin: 20px 0; }
+    #progressBar { width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; }
+    #progressFill { height: 100%; background: linear-gradient(90deg, #4ade80, #22c55e); width: 0%; transition: width 0.3s; }
+    #downloadLink { display: none; text-align: center; margin-top: 20px; }
+    #downloadLink a { display: inline-block; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; }
+    .status { padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; }
+    .success { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+    .error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    @media (max-width: 600px) { .image-preview { width: 120px; height: 120px; } }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>🖼️ JPG to PDF</h1>
+    <p class="subtitle">Convert single or multiple images to a multi-page PDF. Max 10MB total.</p>
+    
+    <input type="file" id="upload" multiple accept="image/jpeg,image/jpg,image/png">
+    <label for="upload">📁 Click or drag images here (JPG/PNG)</label>
+    <div id="fileInfo"></div>
+    
+    <div id="imagesPreview"></div>
+    
+    <button id="convertBtn" disabled>✨ Convert to PDF</button>
+    
+    <div id="progress">
+      <div>Converting images...</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    
+    <div id="downloadLink">
+      <a id="download">📥 Download PDF</a>
+    </div>
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const label = document.querySelector('label[for="upload"]');
+    const fileInfo = document.getElementById('fileInfo');
+    const preview = document.getElementById('imagesPreview');
+    const convertBtn = document.getElementById('convertBtn');
+    const progress = document.getElementById('progress');
+    const progressFill = document.getElementById('progressFill');
+    const downloadLink = document.getElementById('downloadLink');
+    const download = document.getElementById('download');
+    let imageFiles = [];
+
+    // Drag & drop
+    label.addEventListener('dragover', e => {
+      e.preventDefault();
+      label.classList.add('dragover');
+    });
+    label.addEventListener('dragleave', () => label.classList.remove('dragover'));
+    label.addEventListener('drop', e => {
+      e.preventDefault();
+      label.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    // File input
+    upload.addEventListener('change', e => handleFiles(e.target.files));
+
+    function handleFiles(files) {
+      imageFiles = Array.from(files).filter(f => f.type.startsWith('image/') && f.size <= 10*1024*1024);
+      if (imageFiles.length === 0) return showStatus('Please select JPG/PNG images only (max 10MB total).', 'error');
+      
+      const totalSize = imageFiles.reduce((sum, f) => sum + f.size, 0);
+      if (totalSize > 10*1024*1024) return showStatus('Total size exceeds 10MB limit.', 'error');
+
+      fileInfo.textContent = `${imageFiles.length} image(s), ${Math.round(totalSize/1024/1024*10)/10}MB`;
+      renderPreviews();
+      convertBtn.disabled = false;
+    }
+
+    function renderPreviews() {
+      preview.innerHTML = '';
+      imageFiles.forEach((file, i) => {
+        const div = document.createElement('div');
+        div.className = 'image-preview';
+        div.innerHTML = `
+          <img src="${URL.createObjectURL(file)}" alt="Preview ${i+1}">
+          <button class="remove-img" onclick="removeImage(${i})">&times;</button>
+        `;
+        preview.appendChild(div);
+      });
+    }
+
+    function removeImage(index) {
+      imageFiles.splice(index, 1);
+      renderPreviews();
+      updateBtn();
+      if (imageFiles.length === 0) fileInfo.textContent = '';
+    }
+
+    function updateBtn() {
+      convertBtn.disabled = imageFiles.length === 0;
+    }
+
+    convertBtn.addEventListener('click', async () => {
+      convertBtn.disabled = true;
+      progress.style.display = 'block';
+      showStatus('Converting images to PDF...', 'success');
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pageWidth = 210;
+        const pageHeight = 297;
+
+        for (let i = 0; i < imageFiles.length; i++) {
+          progressFill.style.width = `${((i + 1) / imageFiles.length) * 100}%`;
+          
+          const img = await createImageBitmap(imageFiles[i]);
+          const imgHeight = (img.height * pageWidth) / img.width;
+          
+          if (imgHeight > pageHeight) {
+            doc.addImage(img, 'JPEG', 0, 0, pageWidth, pageHeight, '', 'FAST');
+          } else {
+            doc.addImage(img, 'JPEG', (pageWidth - pageWidth)/2, (pageHeight - imgHeight)/2, pageWidth, imgHeight, '', 'FAST');
+          }
+          
+          if (i < imageFiles.length - 1) doc.addPage();
+        }
+
+        const pdfBlob = doc.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        download.href = url;
+        download.download = `images-to-pdf-${Date.now()}.pdf`;
+        downloadLink.style.display = 'block';
+        showStatus('PDF ready! Scroll down to download.', 'success');
+        
+      } catch (error) {
+        showStatus('Conversion failed. Try smaller images.', 'error');
+        console.error(error);
+      } finally {
+        convertBtn.disabled = false;
+        progress.style.display = 'none';
+        progressFill.style.width = '0%';
+      }
+    });
+
+    function showStatus(msg, type) {
+      const status = document.createElement('div');
+      status.className = `status ${type}`;
+      status.textContent = msg;
+      document.querySelector('.container').appendChild(status);
+      setTimeout(() => status.remove(), 5000);
+    }
+
+    updateBtn();
+  </script>
+</body>
+</html>
