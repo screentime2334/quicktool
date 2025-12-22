@@ -83,7 +83,6 @@
       handleFiles(e.dataTransfer.files);
     });
 
-    // File input
     upload.addEventListener('change', e => handleFiles(e.target.files));
 
     function handleFiles(files) {
@@ -122,6 +121,24 @@
       convertBtn.disabled = imageFiles.length === 0;
     }
 
+    function imageToDataURL(file) {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+          URL.revokeObjectURL(img.src);
+        };
+        
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
     convertBtn.addEventListener('click', async () => {
       convertBtn.disabled = true;
       progress.style.display = 'block';
@@ -136,14 +153,22 @@
         for (let i = 0; i < imageFiles.length; i++) {
           progressFill.style.width = `${((i + 1) / imageFiles.length) * 100}%`;
           
-          const img = await createImageBitmap(imageFiles[i]);
-          const imgHeight = (img.height * pageWidth) / img.width;
+          const imgData = await imageToDataURL(imageFiles[i]);
+          const img = new Image();
+          await new Promise(resolve => { img.onload = resolve; img.src = imgData; });
           
-          if (imgHeight > pageHeight) {
-            doc.addImage(img, 'JPEG', 0, 0, pageWidth, pageHeight, '', 'FAST');
-          } else {
-            doc.addImage(img, 'JPEG', (pageWidth - pageWidth)/2, (pageHeight - imgHeight)/2, pageWidth, imgHeight, '', 'FAST');
+          let imgWidth = 190;
+          let imgHeight = (img.height * imgWidth) / img.width;
+          
+          if (imgHeight > 277) {
+            imgHeight = 277;
+            imgWidth = (img.width * imgHeight) / img.height;
           }
+          
+          const x = (pageWidth - imgWidth) / 2;
+          const y = (pageHeight - imgHeight) / 2;
+          
+          doc.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight, `img${i}`, 'FAST');
           
           if (i < imageFiles.length - 1) doc.addPage();
         }
@@ -153,11 +178,11 @@
         download.href = url;
         download.download = `images-to-pdf-${Date.now()}.pdf`;
         downloadLink.style.display = 'block';
-        showStatus('PDF ready! Scroll down to download.', 'success');
+        showStatus('✅ PDF ready! Scroll down to download.', 'success');
         
       } catch (error) {
-        showStatus('Conversion failed. Try smaller images.', 'error');
-        console.error(error);
+        showStatus('❌ Conversion failed. Try smaller images or fewer files.', 'error');
+        console.error('PDF Error:', error);
       } finally {
         convertBtn.disabled = false;
         progress.style.display = 'none';
