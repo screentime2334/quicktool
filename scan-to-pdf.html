@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scan to PDF – Photo to PDF Converter | QuickTool</title>
+  <meta name="description" content="Free scan to PDF tool. Upload phone photos of documents/notes, auto-OCR cleanup, download as multi-page PDF. No signup, browser-only.">
+  <link rel="canonical" href="https://quicktool.pages.dev/scan-to-pdf.html">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: rgba(0,0,0,0.8); border-radius: 20px; padding: 30px; color: white; }
+    h1 { text-align: center; margin-bottom: 10px; font-size: 1.8em; }
+    .subtitle { text-align: center; opacity: 0.9; margin-bottom: 30px; }
+    #upload { display: none; }
+    label[for="upload"] { display: block; border: 3px dashed #4ade80; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    label[for="upload"]:hover { background: rgba(74, 222, 128, 0.1); border-color: #22c55e; }
+    label[for="upload"].dragover { border-color: #22c55e; background: rgba(74, 222, 128, 0.2); }
+    #fileInfo { margin: 20px 0; text-align: center; font-weight: bold; color: #4ade80; }
+    #imagesPreview { display: flex; flex-wrap: wrap; gap: 15px; margin: 20px 0; }
+    .image-preview { position: relative; width: 150px; height: 150px; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .remove-img { position: absolute; top: 5px; right: 5px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; font-size: 12px; }
+    #ocrBtn, #pdfBtn { width: 100%; margin: 10px 0; padding: 15px; border-radius: 15px; font-size: 1.1em; cursor: pointer; transition: transform 0.2s; border: none; }
+    #ocrBtn { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
+    #ocrBtn:hover:not(:disabled) { transform: scale(1.02); }
+    #pdfBtn { background: linear-gradient(135deg, #4ade80, #22c55e); color: white; display: none; }
+    #pdfBtn:hover:not(:disabled) { transform: scale(1.02); }
+    #progress { display: none; text-align: center; margin: 20px 0; }
+    #progressBar { width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; }
+    #progressFill { height: 100%; background: linear-gradient(90deg, #4ade80, #22c55e); width: 0%; transition: width 0.3s; }
+    #textOutput { display: none; margin: 20px 0; }
+    #textOutput textarea { width: 100%; height: 150px; background: #1f2937; color: white; border: 1px solid #4b5563; border-radius: 10px; padding: 15px; font-family: monospace; font-size: 14px; resize: vertical; }
+    #downloadLink { display: none; text-align: center; margin-top: 20px; }
+    #downloadLink a { display: inline-block; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; }
+    .status { padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; }
+    .success { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+    .error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    @media (max-width: 600px) { .image-preview { width: 120px; height: 120px; } }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 Scan to PDF</h1>
+    <p class="subtitle">Upload phone photos of documents/notes → Auto OCR → Clean multi-page PDF. Max 10MB total.</p>
+    
+    <input type="file" id="upload" multiple accept="image/jpeg,image/jpg,image/png">
+    <label for="upload">📁 Click or drag scan photos here (JPG/PNG)</label>
+    <div id="fileInfo"></div>
+    
+    <div id="imagesPreview"></div>
+    
+    <button id="ocrBtn">✨ Extract Text (OCR)</button>
+    <button id="pdfBtn">📄 Create PDF</button>
+    
+    <div id="progress">
+      <div id="progressText">Processing...</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    
+    <div id="textOutput">
+      <h3>📝 Extracted Text (Edit if needed)</h3>
+      <textarea id="editableText" placeholder="OCR text will appear here..."></textarea>
+    </div>
+    
+    <div id="downloadLink">
+      <a id="download">📥 Download PDF</a>
+    </div>
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const label = document.querySelector('label[for="upload"]');
+    const fileInfo = document.getElementById('fileInfo');
+    const preview = document.getElementById('imagesPreview');
+    const ocrBtn = document.getElementById('ocrBtn');
+    const pdfBtn = document.getElementById('pdfBtn');
+    const progress = document.getElementById('progress');
+    const progressText = document.getElementById('progressText');
+    const progressFill = document.getElementById('progressFill');
+    const textOutput = document.getElementById('textOutput');
+    const editableText = document.getElementById('editableText');
+    const downloadLink = document.getElementById('downloadLink');
+    const download = document.getElementById('download');
+    let imageFiles = [];
+    let ocrResults = [];
+
+    // Drag & drop
+    label.addEventListener('dragover', e => { e.preventDefault(); label.classList.add('dragover'); });
+    label.addEventListener('dragleave', () => label.classList.remove('dragover'));
+    label.addEventListener('drop', e => {
+      e.preventDefault(); label.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    upload.addEventListener('change', e => handleFiles(e.target.files));
+
+    function handleFiles(files) {
+      imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+      if (imageFiles.length === 0) return showStatus('Please select JPG/PNG images.', 'error');
+      
+      const totalSize = imageFiles.reduce((sum, f) => sum + f.size, 0);
+      if (totalSize > 10*1024*1024) return showStatus('Total size exceeds 10MB limit.', 'error');
+
+      fileInfo.textContent = `${imageFiles.length} scan(s), ${Math.round(totalSize/1024/1024*10)/10}MB`;
+      renderPreviews();
+      ocrBtn.disabled = false;
+      pdfBtn.style.display = 'none';
+      textOutput.style.display = 'none';
+    }
+
+    function renderPreviews() {
+      preview.innerHTML = '';
+      imageFiles.forEach((file, i) => {
+        const div = document.createElement('div');
+        div.className = 'image-preview';
+        div.innerHTML = `
+          <img src="${URL.createObjectURL(file)}" alt="Scan ${i+1}">
+          <button class="remove-img" onclick="removeImage(${i})">&times;</button>
+        `;
+        preview.appendChild(div);
+      });
+    }
+
+    function removeImage(index) {
+      imageFiles.splice(index, 1);
+      renderPreviews();
+      if (imageFiles.length === 0) fileInfo.textContent = '';
+    }
+
+    ocrBtn.addEventListener('click', async () => {
+      ocrBtn.disabled = true;
+      progress.style.display = 'block';
+      showStatus('Running OCR on scans...', 'success');
+      
+      try {
+        ocrResults = [];
+        for (let i = 0; i < imageFiles.length; i++) {
+          progressText.textContent = `OCR ${i+1}/${imageFiles.length}...`;
+          progressFill.style.width = `${((i + 1) / imageFiles.length) * 100}%`;
+          
+          const { data: { text } } = await Tesseract.recognize(imageFiles[i], 'eng', {
+            logger: m => console.log(m)
+          });
+          ocrResults.push(text.trim());
+        }
+        
+        editableText.value = ocrResults.join('\n\n--- Page Break ---\n\n');
+        textOutput.style.display = 'block';
+        pdfBtn.style.display = 'block';
+        showStatus('✅ OCR complete! Edit text above, then create PDF.', 'success');
+        
+      } catch (error) {
+        showStatus('❌ OCR failed. Try clearer images.', 'error');
+        console.error(error);
+      } finally {
+        ocrBtn.disabled = false;
+        progress.style.display = 'none';
+        progressFill.style.width = '0%';
+      }
+    });
+
+    pdfBtn.addEventListener('click', async () => {
+      pdfBtn.disabled = true;
+      progress.style.display = 'block';
+      progressText.textContent = 'Creating PDF...';
+      
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pageWidth = 190;
+        const pageHeight = 277;
+        const margin = 10;
+        const lineHeight = 5;
+        
+        const pages = editableText.value.split('\n\n--- Page Break ---\n\n');
+        if (pages.length === 1) pages.push('');
+        
+        for (let i = 0; i < pages.length; i++) {
+          if (i > 0) doc.addPage();
+          
+          // Add page number
+          doc.setFontSize(10);
+          doc.text(`Page ${i+1}`, pageWidth/2, 10, { align: 'center' });
+          
+          // Add text with wrapping
+          const splitText = doc.splitTextToSize(pages[i], pageWidth - 2*margin);
+          doc.setFontSize(12);
+          doc.text(splitText, margin, margin + 15, { maxWidth: pageWidth - 2*margin });
+        }
+        
+        const pdfBlob = doc.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        download.href = url;
+        download.download = `scan-to-pdf-${Date.now()}.pdf`;
+        downloadLink.style.display = 'block';
+        showStatus('✅ PDF ready! Scroll down to download.', 'success');
+        
+      } catch (error) {
+        showStatus('❌ PDF creation failed.', 'error');
+        console.error(error);
+      } finally {
+        pdfBtn.disabled = false;
+        progress.style.display = 'none';
+      }
+    });
+
+    function showStatus(msg, type) {
+      const status = document.createElement('div');
+      status.className = `status ${type}`;
+      status.textContent = msg;
+      document.querySelector('.container').appendChild(status);
+      setTimeout(() => status.remove(), 5000);
+    }
+  </script>
+</body>
+</html>
