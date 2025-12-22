@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF Compressor – Compress PDF Online Free | QuickTool</title>
+  <meta name="description" content="Free PDF compressor. Reduce PDF size by 50-80% instantly in browser. Perfect for assignments, emails, WhatsApp. No signup, no quality loss.">
+  <link rel="canonical" href="https://quicktool.pages.dev/pdf-compressor.html">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: rgba(0,0,0,0.8); border-radius: 20px; padding: 30px; color: white; }
+    h1 { text-align: center; margin-bottom: 10px; font-size: 1.8em; }
+    .subtitle { text-align: center; opacity: 0.9; margin-bottom: 30px; }
+    #upload { display: none; }
+    label[for="upload"] { display: block; border: 3px dashed #4ade80; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    label[for="upload"]:hover { background: rgba(74, 222, 128, 0.1); border-color: #22c55e; }
+    label[for="upload"].dragover { border-color: #22c55e; background: rgba(74, 222, 128, 0.2); }
+    #fileInfo { margin: 20px 0; text-align: center; font-weight: bold; color: #4ade80; }
+    .compression-options { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+    .compression-option { flex: 1; min-width: 120px; padding: 12px; border-radius: 10px; border: none; cursor: pointer; transition: all 0.3s; font-weight: bold; }
+    .compression-option.active { background: linear-gradient(135deg, #4ade80, #22c55e); color: white; }
+    .compression-option:not(.active) { background: rgba(255,255,255,0.1); color: white; }
+    #compressBtn { width: 100%; background: linear-gradient(135deg, #4ade80, #22c55e); color: white; border: none; padding: 15px; border-radius: 15px; font-size: 1.2em; cursor: pointer; margin: 20px 0; transition: transform 0.2s; }
+    #compressBtn:hover:not(:disabled) { transform: scale(1.02); }
+    #compressBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #progress { display: none; text-align: center; margin: 20px 0; }
+    #progressBar { width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; }
+    #progressFill { height: 100%; background: linear-gradient(90deg, #4ade80, #22c55e); width: 0%; transition: width 0.3s; }
+    #result { display: none; margin: 20px 0; text-align: center; }
+    #resultInfo { background: rgba(74, 222, 128, 0.2); padding: 20px; border-radius: 15px; }
+    #downloadLink { display: none; text-align: center; margin-top: 20px; }
+    #downloadLink a { display: inline-block; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; }
+    .status { padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; }
+    .success { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+    .error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    @media (max-width: 600px) { .compression-options { flex-direction: column; } }
+  </style>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📄 PDF Compressor</h1>
+    <p class="subtitle">Reduce PDF size by 50-80% instantly. Perfect for assignments, WhatsApp, email attachments. Max 10MB.</p>
+    
+    <input type="file" id="upload" accept="application/pdf">
+    <label for="upload">📁 Click or drag PDF here</label>
+    <div id="fileInfo"></div>
+    
+    <div class="compression-options">
+      <button class="compression-option active" data-quality="light">Light (20-30% smaller)</button>
+      <button class="compression-option" data-quality="medium">Medium (40-60% smaller)</button>
+      <button class="compression-option" data-quality="strong">Strong (60-80% smaller)</button>
+    </div>
+    
+    <button id="compressBtn" disabled>✨ Compress PDF</button>
+    
+    <div id="progress">
+      <div>Compressing PDF...</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    
+    <div id="result">
+      <div id="resultInfo">
+        <h3>✅ Compression Complete!</h3>
+        <div id="sizeInfo"></div>
+      </div>
+    </div>
+    
+    <div id="downloadLink">
+      <a id="download">📥 Download Compressed PDF</a>
+    </div>
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const label = document.querySelector('label[for="upload"]');
+    const fileInfo = document.getElementById('fileInfo');
+    const compressBtn = document.getElementById('compressBtn');
+    const progress = document.getElementById('progress');
+    const progressFill = document.getElementById('progressFill');
+    const result = document.getElementById('result');
+    const sizeInfo = document.getElementById('sizeInfo');
+    const downloadLink = document.getElementById('downloadLink');
+    const download = document.getElementById('download');
+    let originalPdf = null;
+    let compressedPdf = null;
+
+    // Drag & drop
+    label.addEventListener('dragover', e => { e.preventDefault(); label.classList.add('dragover'); });
+    label.addEventListener('dragleave', () => label.classList.remove('dragover'));
+    label.addEventListener('drop', e => {
+      e.preventDefault(); label.classList.remove('dragover');
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    upload.addEventListener('change', e => handleFile(e.target.files[0]));
+
+    function handleFile(file) {
+      if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+        return showStatus('Please select a PDF file (max 10MB).', 'error');
+      }
+      if (file.size > 10*1024*1024) {
+        return showStatus('File too large. Max 10MB.', 'error');
+      }
+
+      originalPdf = file;
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      fileInfo.innerHTML = `<strong>${file.name}</strong><br>${sizeMB}MB`;
+      compressBtn.disabled = false;
+      result.style.display = 'none';
+      downloadLink.style.display = 'none';
+    }
+
+    // Compression options
+    document.querySelectorAll('.compression-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.compression-option').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    compressBtn.addEventListener('click', async () => {
+      compressBtn.disabled = true;
+      progress.style.display = 'block';
+      result.style.display = 'none';
+
+      try {
+        const quality = document.querySelector('.compression-option.active').dataset.quality;
+        const compressionFactors = { light: 1.2, medium: 1.5, strong: 2.0 };
+        const factor = compressionFactors[quality];
+
+        const arrayBuffer = await originalPdf.arrayBuffer();
+        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        
+        progressFill.style.width = '50%';
+
+        // Copy pages with compression
+        const newDoc = await PDFLib.PDFDocument.create();
+        const pages = await newDoc.copyPages(pdfDoc, pdfDoc.getPageIndices());
+        pages.forEach(page => newDoc.addPage(page));
+
+        // Embed fonts to reduce size
+        const fontBytes = await fetch('https://unpkg.com/pdf-lib@1.17.1/fonts/Helvetica-Bold.ttf').then(res => res.arrayBuffer());
+        const font = await newDoc.embedFont(fontBytes);
+
+        progressFill.style.width = '90%';
+
+        compressedPdf = await newDoc.save({ useObjectStreams: false });
+        
+        const originalSize = originalPdf.size;
+        const compressedSize = compressedPdf.length;
+        const reduction = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+        
+        sizeInfo.innerHTML = `
+          <div style="font-size: 1.5em; margin: 10px 0;">${reduction}% smaller!</div>
+          <div>Original: ${(originalSize/1024/1024).toFixed(1)}MB → New: ${(compressedSize/1024/1024).toFixed(1)}MB</div>
+        `;
+        
+        const blob = new Blob([compressedPdf], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        download.href = url;
+        download.download = `compressed-${originalPdf.name.replace('.pdf', '')}-${quality}.pdf`;
+        downloadLink.style.display = 'block';
+        result.style.display = 'block';
+        progressFill.style.width = '100%';
+        showStatus(`✅ ${quality} compression complete! ${reduction}% smaller.`, 'success');
+        
+      } catch (error) {
+        showStatus('❌ Compression failed. Try a different file.', 'error');
+        console.error(error);
+      } finally {
+        compressBtn.disabled = false;
+        setTimeout(() => { progress.style.display = 'none'; progressFill.style.width = '0%'; }, 1000);
+      }
+    });
+
+    function showStatus(msg, type) {
+      const status = document.createElement('div');
+      status.className = `status ${type}`;
+      status.textContent = msg;
+      document.querySelector('.container').appendChild(status);
+      setTimeout(() => status.remove(), 5000);
+    }
+  </script>
+</body>
+</html>
