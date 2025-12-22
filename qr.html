@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickTools.in - QR Code Generator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-emerald-50 to-blue-50 min-h-screen p-8">
+<div class="max-w-2xl mx-auto">
+<h1 class="text-5xl font-bold text-center mb-8 bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">📱 QR Code Generator</h1>
+<p class="text-xl text-center mb-12 text-gray-700">Perfect QR codes for YouTube channels & websites</p>
+
+<!-- Input -->
+<div class="bg-white/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl mb-8">
+  <input type="url" id="url" placeholder="https://youtube.com/@screentime2334" 
+         class="w-full p-6 border-2 border-gray-200 rounded-2xl focus:border-emerald-400 text-xl font-semibold mb-6"
+         value="https://youtube.com/@screentime2334">
+  <button id="generate" class="w-full bg-gradient-to-r from-emerald-600 to-blue-600 text-white py-6 px-8 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all">
+    ✨ Generate QR Code
+  </button>
+</div>
+
+<!-- Loading -->
+<div id="loading" class="hidden text-center py-12">
+  <div class="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+  <p class="text-xl font-bold text-emerald-600">Generating...</p>
+</div>
+
+<!-- Result -->
+<div id="result" class="hidden bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl text-center">
+  <img id="qrcode" class="mx-auto mb-8 shadow-2xl rounded-2xl block w-80 h-80" alt="QR Code">
+  <button id="download" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-6 px-8 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all">
+    💾 Download QR Code
+  </button>
+</div>
+
+<footer class="mt-16 pt-8 border-t text-center text-gray-600">
+  <p>✅ Scans perfectly on all phones • 100% free • By @ScreenTime2334</p>
+</footer>
+</div>
+
+<script>
+const urlInput = document.getElementById('url');
+const generateBtn = document.getElementById('generate');
+const loading = document.getElementById('loading');
+const result = document.getElementById('result');
+const qrImg = document.getElementById('qrcode');
+const downloadBtn = document.getElementById('download');
+
+generateBtn.onclick = () => {
+  const url = urlInput.value.trim();
+  if (!url) {
+    alert('Enter a URL first!');
+    return;
+  }
+  
+  loading.classList.remove('hidden');
+  result.classList.add('hidden');
+  
+  // Google's reliable QR API
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`;
+  
+  qrImg.onload = () => {
+    loading.classList.add('hidden');
+    result.classList.remove('hidden');
+    
+    downloadBtn.onclick = () => {
+      const link = document.createElement('a');
+      link.download = 'qrcode.png';
+      link.href = qrImg.src;
+      link.click();
+    };
+  };
+  
+  qrImg.onerror = () => {
+    loading.classList.add('hidden');
+    alert('Failed to generate QR. Try shorter URL.');
+  };
+  
+  qrImg.src = qrUrl;
+};
+
+// Enter key
+urlInput.onkeypress = (e) => {
+  if (e.key === 'Enter') generateBtn.click();
+};
+</script>
+</body>
+</html>

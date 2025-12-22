@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuickTools.in - PDF Merge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- pdf-lib from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 min-h-screen p-6 md:p-10">
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-4xl md:text-5xl font-black text-center mb-4 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+    📚 PDF Merge Tool
+  </h1>
+  <p class="text-center text-lg md:text-xl text-gray-600 mb-8">
+    Combine multiple PDF files into one – 100% in your browser, no upload.
+  </p>
+
+  <!-- Upload box -->
+  <div id="dropZone"
+       class="bg-white/90 rounded-3xl shadow-2xl border-4 border-dashed border-purple-200 hover:border-purple-400 transition-all p-8 md:p-10 text-center cursor-pointer mb-8">
+    <input id="fileInput" type="file" accept="application/pdf" multiple class="hidden">
+    <div class="text-6xl mb-4">📄</div>
+    <p class="text-xl md:text-2xl font-bold text-gray-700 mb-2">Click here or drop PDF files</p>
+    <p class="text-sm md:text-base text-gray-500">Add 2–10 PDFs to merge. Files stay on your device.</p>
+  </div>
+
+  <!-- File list -->
+  <div id="fileListWrapper" class="hidden bg-white/90 rounded-3xl shadow-xl p-6 mb-8">
+    <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-4">Selected files (drag to reorder):</h2>
+    <ul id="fileList" class="space-y-2 text-sm md:text-base"></ul>
+    <p class="text-xs text-gray-500 mt-3">Tip: Higher files appear earlier in the merged PDF.</p>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex flex-col md:flex-row gap-4 mb-8">
+    <button id="mergeBtn"
+            class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 text-base md:text-lg font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all disabled:opacity-40"
+            disabled>
+      ✨ Merge PDFs
+    </button>
+    <button id="clearBtn"
+            class="md:w-40 bg-gray-200 text-gray-800 py-4 text-base md:text-lg font-semibold rounded-2xl hover:bg-gray-300 transition-all hidden">
+      🧹 Clear
+    </button>
+  </div>
+
+  <!-- Status -->
+  <div id="status" class="hidden text-center mb-6">
+    <div class="flex items-center justify-center gap-3 text-purple-700">
+      <div class="w-6 h-6 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+      <span class="font-semibold text-sm md:text-base" id="statusText">Merging PDFs…</span>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="resultWrapper" class="hidden bg-white/90 rounded-3xl shadow-xl p-6 text-center">
+    <p class="text-lg md:text-xl font-bold text-emerald-600 mb-3">✅ PDFs merged successfully!</p>
+    <p class="text-sm md:text-base text-gray-600 mb-4">Click the button below to download your merged file.</p>
+    <button id="downloadBtn"
+            class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-4 text-base md:text-lg font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all">
+      💾 Download merged.pdf
+    </button>
+  </div>
+
+  <footer class="mt-10 pt-6 border-t border-gray-200 text-center text-xs md:text-sm text-gray-500">
+    100% browser-side • No file upload • Powered by pdf-lib • By @ScreenTime2334
+  </footer>
+</div>
+
+<script>
+  const { PDFDocument } = PDFLib; // from pdf-lib CDN
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const fileListWrapper = document.getElementById('fileListWrapper');
+  const fileList = document.getElementById('fileList');
+  const mergeBtn = document.getElementById('mergeBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const statusDiv = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+  const resultWrapper = document.getElementById('resultWrapper');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  let files = [];
+  let mergedBytes = null;
+
+  // Open dialog on click
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  // Handle file input
+  fileInput.addEventListener('change', (e) => {
+    handleFiles(Array.from(e.target.files));
+  });
+
+  // Drag & drop
+  ['dragenter','dragover'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add('bg-purple-50');
+    });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove('bg-purple-50');
+    });
+  });
+  dropZone.addEventListener('drop', (e) => {
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+    handleFiles(droppedFiles);
+  });
+
+  function handleFiles(newFiles) {
+    const pdfs = newFiles.filter(f => f.type === 'application/pdf');
+    if (!pdfs.length) {
+      alert('Please select PDF files only.');
+      return;
+    }
+    files = files.concat(pdfs);
+    renderFileList();
+  }
+
+  function renderFileList() {
+    fileList.innerHTML = '';
+    if (!files.length) {
+      fileListWrapper.classList.add('hidden');
+      mergeBtn.disabled = true;
+      clearBtn.classList.add('hidden');
+      return;
+    }
+    fileListWrapper.classList.remove('hidden');
+    clearBtn.classList.remove('hidden');
+    mergeBtn.disabled = files.length < 2;
+
+    files.forEach((file, index) => {
+      const li = document.createElement('li');
+      li.className = 'flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2';
+      li.draggable = true;
+      li.dataset.index = index;
+
+      li.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="cursor-grab text-slate-400">☰</span>
+          <div>
+            <div class="font-semibold text-gray-800 text-xs md:text-sm truncate max-w-[160px] md:max-w-[220px]">${file.name}</div>
+            <div class="text-[10px] md:text-xs text-gray-500">${(file.size/1024).toFixed(1)} KB</div>
+          </div>
+        </div>
+        <button class="text-xs md:text-sm text-red-500 hover:text-red-700 font-semibold remove-btn">Remove</button>
+      `;
+
+      // Drag events
+      li.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', index.toString());
+        li.classList.add('opacity-50');
+      });
+      li.addEventListener('dragend', () => {
+        li.classList.remove('opacity-50');
+      });
+      li.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        li.classList.add('bg-purple-100');
+      });
+      li.addEventListener('dragleave', () => {
+        li.classList.remove('bg-purple-100');
+      });
+      li.addEventListener('drop', (e) => {
+        e.preventDefault();
+        li.classList.remove('bg-purple-100');
+        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        const toIndex = index;
+        if (fromIndex === toIndex) return;
+        const moved = files.splice(fromIndex, 1)[0];
+        files.splice(toIndex, 0, moved);
+        renderFileList();
+      });
+
+      // Remove button
+      li.querySelector('.remove-btn').addEventListener('click', () => {
+        files.splice(index, 1);
+        renderFileList();
+      });
+
+      fileList.appendChild(li);
+    });
+  }
+
+  clearBtn.addEventListener('click', () => {
+    files = [];
+    mergedBytes = null;
+    fileInput.value = '';
+    renderFileList();
+    resultWrapper.classList.add('hidden');
+  });
+
+  mergeBtn.addEventListener('click', async () => {
+    if (files.length < 2) {
+      alert('Select at least 2 PDFs to merge.');
+      return;
+    }
+
+    statusDiv.classList.remove('hidden');
+    statusText.textContent = 'Reading PDF files…';
+    resultWrapper.classList.add('hidden');
+    mergedBytes = null;
+
+    try {
+      // Read all PDFs as ArrayBuffers
+      const buffers = await Promise.all(
+        files.map(file => file.arrayBuffer())
+      );
+
+      statusText.textContent = 'Merging pages…';
+
+      const mergedPdf = await PDFDocument.create();
+
+      for (const buf of buffers) {
+        const pdf = await PDFDocument.load(buf);
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach(p => mergedPdf.addPage(p));
+      }
+
+      mergedBytes = await mergedPdf.save();
+      statusText.textContent = 'Preparing download…';
+
+      resultWrapper.classList.remove('hidden');
+      statusDiv.classList.add('hidden');
+
+    } catch (err) {
+      console.error(err);
+      statusDiv.classList.add('hidden');
+      alert('Merging failed. Try with different PDFs or fewer files.');
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if (!mergedBytes) return;
+    const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'merged.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+</body>
+</html>

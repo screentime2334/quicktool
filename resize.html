@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickTools.in - Image Resizer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen p-8">
+<div class="max-w-2xl mx-auto">
+<h1 class="text-5xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">📐 Image Resizer</h1>
+<p class="text-xl text-center mb-12 text-gray-700">Perfect 1280x720 YouTube thumbnails</p>
+
+<div id="upload" class="border-4 border-dashed border-purple-300 rounded-3xl p-20 text-center hover:border-purple-400 cursor-pointer mb-8">
+<input type="file" id="file" accept="image/*" class="hidden">
+<div class="text-6xl mb-4">🖼️</div>
+<p class="text-2xl font-bold text-gray-600">Click or drag image</p>
+</div>
+
+<button id="resize" class="w-full bg-purple-600 text-white py-6 px-8 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl hidden mb-8">✨ Resize Image</button>
+
+<div id="loading" class="hidden text-center">
+<div class="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+<p class="text-xl">Resizing...</p>
+</div>
+
+<div id="result" class="hidden bg-green-50 p-8 rounded-2xl">
+<img id="preview" class="max-h-96 w-full rounded-xl shadow-2xl block mx-auto mb-6">
+<button id="download" class="w-full bg-green-600 text-white py-4 px-8 text-lg font-bold rounded-xl shadow-xl">💾 Download</button>
+</div>
+</div>
+
+<script>
+const fileInput = document.getElementById('file');
+const upload = document.getElementById('upload');
+const resizeBtn = document.getElementById('resize');
+const loading = document.getElementById('loading');
+const result = document.getElementById('result');
+const preview = document.getElementById('preview');
+const downloadBtn = document.getElementById('download');
+
+fileInput.onchange = () => {
+  const file = fileInput.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      upload.innerHTML = `<img src="${e.target.result}" class="max-h-64 mx-auto rounded-2xl shadow-xl">`;
+      resizeBtn.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+upload.onclick = () => fileInput.click();
+
+resizeBtn.onclick = () => {
+  const file = fileInput.files[0];
+  loading.classList.remove('hidden');
+  resizeBtn.classList.add('hidden');
+  
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, 1280, 720);
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      preview.src = url;
+      downloadBtn.onclick = () => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'thumbnail.jpg';
+        a.click();
+      };
+      loading.classList.add('hidden');
+      result.classList.remove('hidden');
+    });
+  };
+  img.src = URL.createObjectURL(file);
+};
+</script>
+</body>
+</html>
