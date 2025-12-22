@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>PDF to Text – Local Test</title>
+  <meta name="description" content="Test page: extract text from a PDF in your browser using pdf.js.">
+
+  <!-- pdf.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/build/pdf.min.js"></script> <!-- [web:368] -->
+
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#020617;
+      color:#e5e7eb;
+    }
+    .page{
+      max-width:800px;
+      margin:0 auto;
+      padding:24px 16px 40px;
+    }
+    h1{margin:0 0 8px;font-size:1.6rem}
+    p{margin:0 0 10px;color:#9ca3af;font-size:.95rem}
+    .upload-box{
+      border:1px dashed #1f2937;
+      border-radius:10px;
+      padding:18px;
+      text-align:center;
+      background:#020617;
+      margin-bottom:12px;
+    }
+    input[type="file"]{margin-top:8px}
+    #status{
+      margin-top:8px;
+      font-size:.85rem;
+      color:#a5b4fc;
+      min-height:1.2em;
+    }
+    textarea{
+      width:100%;
+      min-height:260px;
+      border-radius:10px;
+      border:1px solid #1f2937;
+      background:#020617;
+      color:#e5e7eb;
+      padding:10px 12px;
+      font-size:.9rem;
+      resize:vertical;
+      white-space:pre-wrap;
+    }
+    button{
+      margin-top:8px;
+      padding:7px 14px;
+      border-radius:999px;
+      border:none;
+      cursor:pointer;
+      font-size:.86rem;
+      font-weight:500;
+    }
+    #extract-btn{
+      background:#22c55e;
+      color:#022c22;
+    }
+    #extract-btn:disabled{
+      opacity:.6;
+      cursor:default;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>PDF to Text (local test)</h1>
+    <p>Use a normal text PDF (exported from Word/Google Docs). Scanned PDFs will not work here.</p>
+
+    <div class="upload-box">
+      <div>Choose a PDF (max 10 MB):</div>
+      <input type="file" id="file-input" accept="application/pdf">
+      <div id="status"></div>
+      <button id="extract-btn" disabled>Extract text</button>
+    </div>
+
+    <textarea id="output" placeholder="Extracted text will appear here..."></textarea>
+  </div>
+
+  <script>
+    if (window['pdfjsLib']) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/build/pdf.worker.min.js";
+    }
+
+    const fileInput = document.getElementById('file-input');
+    const statusEl = document.getElementById('status');
+    const extractBtn = document.getElementById('extract-btn');
+    const output = document.getElementById('output');
+
+    let pdfData = null;
+
+    function setStatus(text){
+      statusEl.textContent = text || '';
+    }
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const maxBytes = 10 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        setStatus('File > 10 MB. Choose a smaller PDF.');
+        extractBtn.disabled = true;
+        pdfData = null;
+        return;
+      }
+
+      setStatus('Loading PDF…');
+      extractBtn.disabled = true;
+      output.value = '';
+
+      try {
+        pdfData = await file.arrayBuffer();
+        setStatus('PDF ready. Click "Extract text".');
+        extractBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        setStatus('Could not read PDF file.');
+        pdfData = null;
+      }
+    });
+
+    extractBtn.addEventListener('click', async () => {
+      if (!pdfData || !window['pdfjsLib']) {
+        setStatus('pdf.js not loaded or PDF missing.');
+        return;
+      }
+
+      extractBtn.disabled = true;
+      setStatus('Parsing pages…');
+      output.value = '';
+
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+        const pdf = await loadingTask.promise;
+        const totalPages = pdf.numPages;
+        let allText = '';
+
+        for (let i = 1; i <= totalPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const strings = textContent.items.map(item => item.str);
+          allText += '--- Page ' + i + ' ---\n' + strings.join(' ') + '\n\n';
+          setStatus('Page ' + i + ' of ' + totalPages + ' done.');
+        }
+
+        output.value = allText.trim() || 'No selectable text found.';
+        setStatus('Finished.');
+      } catch (err) {
+        console.error(err);
+        setStatus('Error while extracting text. See console.');
+      } finally {
+        extractBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
