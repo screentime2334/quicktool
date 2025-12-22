@@ -4,8 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>PDF to Text – Local Test</title>
-  <meta name="description" content="Test page: extract text from a PDF in your browser using pdf.js.">
+  <title>PDF to Text – Extract Text from PDF | QuickTool</title>
+  <meta name="description" content="Free PDF to text tool. Upload a PDF (up to 10 MB) and extract all text directly in your browser. No signup, no server upload.">
+  <link rel="canonical" href="https://quicktool.pages.dev/pdf-text.html">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PDF to Text – Extract Text from PDF | QuickTool">
+  <meta property="og:description" content="Turn PDFs into editable text using a fast, browser-based extractor.">
+  <meta property="og:url" content="https://quicktool.pages.dev/pdf-text.html">
+  <meta property="og:site_name" content="QuickTool">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PDF to Text – Extract Text from PDF | QuickTool">
+  <meta name="twitter:description" content="Upload a PDF and copy all extracted text in seconds.">
+
+  <link rel="icon" href="/favicon.ico">
 
   <!-- pdf.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/build/pdf.min.js"></script> <!-- [web:368] -->
@@ -18,27 +31,100 @@
       background:#020617;
       color:#e5e7eb;
     }
+    a{color:#38bdf8;text-decoration:none}
+    a:hover{text-decoration:underline}
     .page{
-      max-width:800px;
+      max-width:960px;
       margin:0 auto;
       padding:24px 16px 40px;
     }
-    h1{margin:0 0 8px;font-size:1.6rem}
-    p{margin:0 0 10px;color:#9ca3af;font-size:.95rem}
+    .back-link{
+      font-size:.86rem;
+      margin-bottom:10px;
+      display:inline-block;
+      color:#9ca3af;
+    }
+    header{
+      margin-bottom:24px;
+    }
+    header h1{
+      font-size:1.8rem;
+      margin:0 0 6px;
+    }
+    header p{
+      margin:0;
+      color:#9ca3af;
+      font-size:.94rem;
+    }
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(0,1.1fr) minmax(0,1.1fr);
+      gap:18px;
+    }
+    @media(max-width:800px){
+      .layout{grid-template-columns:1fr}
+    }
+    .card{
+      background:#020617;
+      border-radius:14px;
+      padding:16px;
+      border:1px solid #111827;
+      box-shadow:0 10px 30px rgba(15,23,42,.8);
+    }
+    .card h2{
+      font-size:1rem;
+      margin:0 0 10px;
+      color:#f9fafb;
+    }
+    .card p{
+      margin:0 0 8px;
+      font-size:.88rem;
+      color:#9ca3af;
+    }
     .upload-box{
       border:1px dashed #1f2937;
       border-radius:10px;
       padding:18px;
       text-align:center;
       background:#020617;
-      margin-bottom:12px;
     }
-    input[type="file"]{margin-top:8px}
-    #status{
+    .upload-box input[type="file"]{
+      display:none;
+    }
+    .upload-label{
+      display:inline-block;
+      padding:8px 14px;
+      border-radius:999px;
+      background:#38bdf8;
+      color:#020617;
+      font-size:.88rem;
+      font-weight:500;
+      cursor:pointer;
+    }
+    .note{
       margin-top:8px;
-      font-size:.85rem;
+      font-size:.78rem;
+      color:#6b7280;
+    }
+    #status{
+      margin-top:10px;
+      font-size:.82rem;
       color:#a5b4fc;
       min-height:1.2em;
+    }
+    .progress-wrap{
+      margin-top:8px;
+      height:6px;
+      background:#020617;
+      border-radius:999px;
+      overflow:hidden;
+      border:1px solid #1f2937;
+    }
+    #progress-bar{
+      width:0%;
+      height:100%;
+      background:linear-gradient(90deg,#38bdf8,#a855f7);
+      transition:width .2s linear;
     }
     textarea{
       width:100%;
@@ -52,13 +138,18 @@
       resize:vertical;
       white-space:pre-wrap;
     }
+    .btn-row{
+      margin-top:10px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
     button{
-      margin-top:8px;
-      padding:7px 14px;
-      border-radius:999px;
       border:none;
-      cursor:pointer;
+      border-radius:999px;
+      padding:7px 14px;
       font-size:.86rem;
+      cursor:pointer;
       font-weight:500;
     }
     #extract-btn{
@@ -69,24 +160,62 @@
       opacity:.6;
       cursor:default;
     }
+    #copy-btn{
+      background:#111827;
+      color:#e5e7eb;
+      border:1px solid #1f2937;
+    }
+    .small{
+      font-size:.78rem;
+      color:#6b7280;
+      margin-top:6px;
+    }
   </style>
 </head>
 <body>
   <div class="page">
-    <h1>PDF to Text (local test)</h1>
-    <p>Use a normal text PDF (exported from Word/Google Docs). Scanned PDFs will not work here.</p>
+    <a href="index.html" class="back-link">← Back to all tools</a>
 
-    <div class="upload-box">
-      <div>Choose a PDF (max 10 MB):</div>
-      <input type="file" id="file-input" accept="application/pdf">
-      <div id="status"></div>
-      <button id="extract-btn" disabled>Extract text</button>
+    <header>
+      <h1>PDF to Text Extractor</h1>
+      <p>Upload a text-based PDF (up to 10 MB) and extract all selectable text into a single editable box. For scanned PDFs, use the Image → Text scanner.</p>
+    </header>
+
+    <div class="layout">
+      <section class="card">
+        <h2>1. Upload PDF</h2>
+        <p>Supports standard PDFs up to <strong>10 MB</strong>. Larger files will be rejected before processing.</p>
+
+        <div class="upload-box">
+          <label class="upload-label">
+            Choose PDF…
+            <input type="file" id="file-input" accept="application/pdf">
+          </label>
+          <div class="note">Text is extracted locally in your browser using pdf.js. The file is not uploaded to any server.</div>
+        </div>
+
+        <div id="status"></div>
+        <div class="progress-wrap">
+          <div id="progress-bar"></div>
+        </div>
+        <div class="small">Big PDFs with many pages may take longer because each page is processed once. [web:344]</div>
+      </section>
+
+      <section class="card">
+        <h2>2. Extracted text</h2>
+        <p>After extraction, edit or copy the text below.</p>
+        <textarea id="output" placeholder="Your extracted text will appear here..."></textarea>
+        <div class="btn-row">
+          <button id="extract-btn" disabled>Extract text</button>
+          <button id="copy-btn">Copy text</button>
+        </div>
+        <div class="small">If your PDF is just photos/scans with no selectable text, use the Text Scanner tool instead. [web:356]</div>
+      </section>
     </div>
-
-    <textarea id="output" placeholder="Extracted text will appear here..."></textarea>
   </div>
 
   <script>
+    // Configure pdf.js worker
     if (window['pdfjsLib']) {
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/build/pdf.worker.min.js";
@@ -94,7 +223,9 @@
 
     const fileInput = document.getElementById('file-input');
     const statusEl = document.getElementById('status');
+    const progressBar = document.getElementById('progress-bar');
     const extractBtn = document.getElementById('extract-btn');
+    const copyBtn = document.getElementById('copy-btn');
     const output = document.getElementById('output');
 
     let pdfData = null;
@@ -103,65 +234,86 @@
       statusEl.textContent = text || '';
     }
 
+    function setProgress(p){
+      const v = Math.max(0, Math.min(1, p || 0));
+      progressBar.style.width = (v * 100).toFixed(0) + '%';
+    }
+
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      const maxBytes = 10 * 1024 * 1024;
+      const maxBytes = 10 * 1024 * 1024; // 10 MB
       if (file.size > maxBytes) {
-        setStatus('File > 10 MB. Choose a smaller PDF.');
+        setStatus('This PDF is larger than 10 MB. Please choose a smaller file.');
+        setProgress(0);
         extractBtn.disabled = true;
+        output.value = '';
         pdfData = null;
         return;
       }
 
       setStatus('Loading PDF…');
+      setProgress(0);
       extractBtn.disabled = true;
       output.value = '';
 
       try {
         pdfData = await file.arrayBuffer();
-        setStatus('PDF ready. Click "Extract text".');
+        setStatus('PDF ready. Click "Extract text" to start.');
+        setProgress(0);
         extractBtn.disabled = false;
       } catch (err) {
         console.error(err);
-        setStatus('Could not read PDF file.');
+        setStatus('Could not read PDF file. Please try another.');
+        setProgress(0);
+        extractBtn.disabled = true;
         pdfData = null;
       }
     });
 
     extractBtn.addEventListener('click', async () => {
-      if (!pdfData || !window['pdfjsLib']) {
-        setStatus('pdf.js not loaded or PDF missing.');
-        return;
-      }
+      if (!pdfData || !window['pdfjsLib']) return;
 
       extractBtn.disabled = true;
       setStatus('Parsing pages…');
+      setProgress(0);
       output.value = '';
 
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData });
         const pdf = await loadingTask.promise;
+
         const totalPages = pdf.numPages;
         let allText = '';
-
         for (let i = 1; i <= totalPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
           const strings = textContent.items.map(item => item.str);
           allText += '--- Page ' + i + ' ---\n' + strings.join(' ') + '\n\n';
-          setStatus('Page ' + i + ' of ' + totalPages + ' done.');
+          setStatus('Extracting page ' + i + ' of ' + totalPages + '…');
+          setProgress(i / totalPages);
         }
 
-        output.value = allText.trim() || 'No selectable text found.';
-        setStatus('Finished.');
+        output.value = allText.trim() || 'No selectable text found in this PDF.';
+        setStatus('Done. All pages processed.');
+        setProgress(1);
       } catch (err) {
         console.error(err);
-        setStatus('Error while extracting text. See console.');
+        setStatus('Something went wrong while extracting text from this PDF.');
+        setProgress(0);
       } finally {
         extractBtn.disabled = false;
       }
+    });
+
+    copyBtn.addEventListener('click', () => {
+      if (!output.value.trim()) return;
+      navigator.clipboard.writeText(output.value).then(() => {
+        const old = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = old; }, 1200);
+      }).catch(() => {});
     });
   </script>
 </body>
