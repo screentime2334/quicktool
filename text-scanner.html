@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Text Scanner – Image to Text | QuickTool</title>
+  <meta name="description" content="Free online text scanner. Upload an image or screenshot and extract text instantly in your browser using OCR. No signup, no server upload.">
+
+  <link rel="canonical" href="https://quicktool.pages.dev/text-scanner.html">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Text Scanner – Image to Text | QuickTool">
+  <meta property="og:description" content="Upload an image and extract text instantly with browser-based OCR. Private and free.">
+  <meta property="og:url" content="https://quicktool.pages.dev/text-scanner.html">
+  <meta property="og:site_name" content="QuickTool">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Text Scanner – Image to Text | QuickTool">
+  <meta name="twitter:description" content="Free browser OCR: turn screenshots and photos into editable text.">
+
+  <link rel="icon" href="/favicon.ico">
+
+  <!-- Tesseract.js from CDN for in-browser OCR -->
+  <script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script> <!-- [web:325][web:337] -->
+
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#020617;
+      color:#e5e7eb;
+    }
+    a{color:#38bdf8;text-decoration:none}
+    a:hover{text-decoration:underline}
+    .page{
+      max-width:960px;
+      margin:0 auto;
+      padding:24px 16px 40px;
+    }
+    header{
+      margin-bottom:24px;
+    }
+    header h1{
+      font-size:1.8rem;
+      margin:0 0 6px;
+    }
+    header p{
+      margin:0;
+      color:#9ca3af;
+      font-size:.94rem;
+    }
+    .back-link{
+      font-size:.86rem;
+      margin-bottom:10px;
+      display:inline-block;
+      color:#9ca3af;
+    }
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(0,1.1fr) minmax(0,1.1fr);
+      gap:18px;
+    }
+    @media(max-width:800px){
+      .layout{grid-template-columns:1fr}
+    }
+    .card{
+      background:#020617;
+      border-radius:14px;
+      padding:16px;
+      border:1px solid #111827;
+      box-shadow:0 10px 30px rgba(15,23,42,.8);
+    }
+    .card h2{
+      font-size:1rem;
+      margin:0 0 10px;
+      color:#f9fafb;
+    }
+    .card p{
+      margin:0 0 8px;
+      font-size:.88rem;
+      color:#9ca3af;
+    }
+    .upload-box{
+      border:1px dashed #1f2937;
+      border-radius:10px;
+      padding:18px;
+      text-align:center;
+      background:#020617;
+    }
+    .upload-box input[type="file"]{
+      display:none;
+    }
+    .upload-label{
+      display:inline-block;
+      padding:8px 14px;
+      border-radius:999px;
+      background:#38bdf8;
+      color:#020617;
+      font-size:.88rem;
+      font-weight:500;
+      cursor:pointer;
+    }
+    .note{
+      margin-top:8px;
+      font-size:.78rem;
+      color:#6b7280;
+    }
+    #preview{
+      margin-top:12px;
+      max-height:220px;
+      border-radius:10px;
+      border:1px solid #1f2937;
+      display:none;
+    }
+    #status{
+      margin-top:10px;
+      font-size:.82rem;
+      color:#a5b4fc;
+      min-height:1.2em;
+    }
+    .progress-wrap{
+      margin-top:8px;
+      height:6px;
+      background:#020617;
+      border-radius:999px;
+      overflow:hidden;
+      border:1px solid #1f2937;
+    }
+    #progress-bar{
+      width:0%;
+      height:100%;
+      background:linear-gradient(90deg,#38bdf8,#a855f7);
+      transition:width .2s linear;
+    }
+    textarea{
+      width:100%;
+      min-height:260px;
+      border-radius:10px;
+      border:1px solid #1f2937;
+      background:#020617;
+      color:#e5e7eb;
+      padding:10px 12px;
+      font-size:.9rem;
+      resize:vertical;
+    }
+    .btn-row{
+      margin-top:10px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    button{
+      border:none;
+      border-radius:999px;
+      padding:7px 14px;
+      font-size:.86rem;
+      cursor:pointer;
+      font-weight:500;
+    }
+    #scan-btn{
+      background:#22c55e;
+      color:#022c22;
+    }
+    #scan-btn:disabled{
+      opacity:.6;
+      cursor:default;
+    }
+    #copy-btn{
+      background:#111827;
+      color:#e5e7eb;
+      border:1px solid #1f2937;
+    }
+    .small{
+      font-size:.78rem;
+      color:#6b7280;
+      margin-top:6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <a href="index.html" class="back-link">← Back to all tools</a>
+
+    <header>
+      <h1>Text Scanner – Image to Text</h1>
+      <p>Upload a screenshot or photo and extract selectable text directly in your browser. Nothing leaves your device.</p>
+    </header>
+
+    <div class="layout">
+      <section class="card">
+        <h2>1. Upload image</h2>
+        <p>Supported formats: JPG, PNG, WEBP. For best results use clear, high‑contrast images.</p>
+
+        <div class="upload-box">
+          <label class="upload-label">
+            Choose image…
+            <input type="file" id="file-input" accept="image/*">
+          </label>
+          <div class="note">Or drag &amp; drop an image file onto this box.</div>
+          <img id="preview" alt="Image preview">
+        </div>
+
+        <div id="status"></div>
+        <div class="progress-wrap">
+          <div id="progress-bar"></div>
+        </div>
+        <div class="small">Processing happens locally using Tesseract.js OCR in your browser.</div>
+      </section>
+
+      <section class="card">
+        <h2>2. Extracted text</h2>
+        <p>The recognized text appears below. You can edit or copy it.</p>
+        <textarea id="output" placeholder="Your extracted text will appear here..."></textarea>
+        <div class="btn-row">
+          <button id="scan-btn" disabled>Scan image</button>
+          <button id="copy-btn">Copy text</button>
+        </div>
+        <div class="small">Accuracy depends on image quality, language, and fonts. Try to avoid blurry or very small text. <!-- [web:327][web:328] --></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('file-input');
+    const preview = document.getElementById('preview');
+    const statusEl = document.getElementById('status');
+    const progressBar = document.getElementById('progress-bar');
+    const scanBtn = document.getElementById('scan-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const output = document.getElementById('output');
+
+    let selectedFile = null;
+
+    function setStatus(text){
+      statusEl.textContent = text || '';
+    }
+
+    function setProgress(p){
+      const v = Math.max(0, Math.min(1, p || 0));
+      progressBar.style.width = (v * 100).toFixed(0) + '%';
+    }
+
+    function handleFiles(files){
+      if (!files || !files[0]) return;
+      selectedFile = files[0];
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        setStatus('Image ready. Click "Scan image" to start OCR.');
+        setProgress(0);
+        scanBtn.disabled = false;
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+
+    fileInput.addEventListener('change', e => {
+      handleFiles(e.target.files);
+    });
+
+    // Drag & drop
+    const uploadBox = document.querySelector('.upload-box');
+    uploadBox.addEventListener('dragover', e => {
+      e.preventDefault();
+      uploadBox.style.borderColor = '#38bdf8';
+    });
+    uploadBox.addEventListener('dragleave', e => {
+      e.preventDefault();
+      uploadBox.style.borderColor = '#1f2937';
+    });
+    uploadBox.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadBox.style.borderColor = '#1f2937';
+      handleFiles(e.dataTransfer.files);
+    });
+
+    scanBtn.addEventListener('click', () => {
+      if (!selectedFile) return;
+
+      scanBtn.disabled = true;
+      setStatus('Starting OCR…');
+      setProgress(0);
+
+      Tesseract.recognize(
+        selectedFile,
+        'eng',
+        {
+          logger: m => {
+            if (m.status === 'recognizing text' && m.progress != null) {
+              setProgress(m.progress);
+            }
+          }
+        }
+      ).then(({ data }) => {
+        output.value = data.text || '';
+        setStatus('Done. You can edit or copy the text.');
+        setProgress(1);
+      }).catch(err => {
+        console.error(err);
+        setStatus('Something went wrong while scanning. Please try another image.');
+        setProgress(0);
+      }).finally(() => {
+        scanBtn.disabled = false;
+      });
+    });
+
+    copyBtn.addEventListener('click', () => {
+      if (!output.value.trim()) return;
+      navigator.clipboard.writeText(output.value).then(() => {
+        const old = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = old; }, 1200);
+      }).catch(() => {});
+    });
+  </script>
+</body>
+</html>
