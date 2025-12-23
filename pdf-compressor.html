@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PDF Compressor – Compress PDF Online Free | QuickTool</title>
-  <meta name="description" content="Free PDF compressor. Reduce PDF size by 50-80% instantly in browser. Perfect for assignments, emails, WhatsApp. No signup, no quality loss.">
+  <meta name="description" content="Free PDF compressor. Reduce PDF size instantly in browser. Perfect for assignments, WhatsApp. Max 15MB.">
   <link rel="canonical" href="https://quicktool.pages.dev/pdf-compressor.html">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,10 +17,6 @@
     label[for="upload"]:hover { background: rgba(74, 222, 128, 0.1); border-color: #22c55e; }
     label[for="upload"].dragover { border-color: #22c55e; background: rgba(74, 222, 128, 0.2); }
     #fileInfo { margin: 20px 0; text-align: center; font-weight: bold; color: #4ade80; }
-    .compression-options { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
-    .compression-option { flex: 1; min-width: 120px; padding: 12px; border-radius: 10px; border: none; cursor: pointer; transition: all 0.3s; font-weight: bold; }
-    .compression-option.active { background: linear-gradient(135deg, #4ade80, #22c55e); color: white; }
-    .compression-option:not(.active) { background: rgba(255,255,255,0.1); color: white; }
     #compressBtn { width: 100%; background: linear-gradient(135deg, #4ade80, #22c55e); color: white; border: none; padding: 15px; border-radius: 15px; font-size: 1.2em; cursor: pointer; margin: 20px 0; transition: transform 0.2s; }
     #compressBtn:hover:not(:disabled) { transform: scale(1.02); }
     #compressBtn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -34,41 +30,34 @@
     .status { padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; }
     .success { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
     .error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-    @media (max-width: 600px) { .compression-options { flex-direction: column; } }
   </style>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
   <div class="container">
     <h1>📄 PDF Compressor</h1>
-    <p class="subtitle">Reduce PDF size by 50-80% instantly. Perfect for assignments, WhatsApp, email. Max 10MB.</p>
+    <p class="subtitle">Optimize & reduce PDF size (10-50% smaller). Works for most text PDFs. Max 15MB.</p>
     
     <input type="file" id="upload" accept="application/pdf">
-    <label for="upload">📁 Click or drag PDF here</label>
+    <label for="upload">📁 Click or drag PDF here (text-based PDFs work best)</label>
     <div id="fileInfo"></div>
     
-    <div class="compression-options">
-      <button class="compression-option active" data-scale="0.8">Light (20-30% smaller)</button>
-      <button class="compression-option" data-scale="0.6">Medium (40-60% smaller)</button>
-      <button class="compression-option" data-scale="0.4">Strong (60-80% smaller)</button>
-    </div>
-    
-    <button id="compressBtn" disabled>✨ Compress PDF</button>
+    <button id="compressBtn" disabled>✨ Optimize PDF</button>
     
     <div id="progress">
-      <div>Compressing PDF...</div>
+      <div>Optimizing PDF...</div>
       <div id="progressBar"><div id="progressFill"></div></div>
     </div>
     
     <div id="result">
       <div id="resultInfo">
-        <h3>✅ Compression Complete!</h3>
+        <h3>✅ Optimization Complete!</h3>
         <div id="sizeInfo"></div>
       </div>
     </div>
     
     <div id="downloadLink">
-      <a id="download">📥 Download Compressed PDF</a>
+      <a id="download">📥 Download Optimized PDF</a>
     </div>
   </div>
 
@@ -84,7 +73,7 @@
     const downloadLink = document.getElementById('downloadLink');
     const download = document.getElementById('download');
     let originalPdf = null;
-    let compressedPdf = null;
+    let optimizedPdf = null;
 
     // Drag & drop
     label.addEventListener('dragover', e => { e.preventDefault(); label.classList.add('dragover'); });
@@ -98,10 +87,10 @@
 
     function handleFile(file) {
       if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
-        return showStatus('Please select a PDF file (max 10MB).', 'error');
+        return showStatus('Please select a PDF file (max 15MB).', 'error');
       }
-      if (file.size > 10*1024*1024) {
-        return showStatus('File too large. Max 10MB.', 'error');
+      if (file.size > 15*1024*1024) {
+        return showStatus('File too large. Max 15MB.', 'error');
       }
 
       originalPdf = file;
@@ -112,71 +101,51 @@
       downloadLink.style.display = 'none';
     }
 
-    // Compression options
-    document.querySelectorAll('.compression-option').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.compression-option').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-      });
-    });
-
     compressBtn.addEventListener('click', async () => {
       compressBtn.disabled = true;
       progress.style.display = 'block';
       result.style.display = 'none';
 
       try {
-        const scale = parseFloat(document.querySelector('.compression-option.active').dataset.scale);
-
         const arrayBuffer = await originalPdf.arrayBuffer();
         const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
         
-        progressFill.style.width = '30%';
+        progressFill.style.width = '40%';
 
-        // Create new document
+        // Create new document and copy pages (removes redundant objects)
         const newDoc = await PDFLib.PDFDocument.create();
-        
-        // Copy all pages with scaling
         const copiedPages = await newDoc.copyPages(pdfDoc, pdfDoc.getPageIndices());
-        copiedPages.forEach((page, index) => {
-          const scaledPage = newDoc.addPage([page.getWidth() * scale * 0.95, page.getHeight() * scale * 0.95]);
-          scaledPage.drawPage(page, {
-            x: 0,
-            y: 0,
-            width: scaledPage.getWidth(),
-            height: scaledPage.getHeight(),
-            preserveAspectRatio: true
-          });
-        });
+        copiedPages.forEach(page => newDoc.addPage(page));
 
-        progressFill.style.width = '90%';
+        progressFill.style.width = '80%';
 
-        // Save without object streams for compatibility
-        compressedPdf = await newDoc.save({
+        // Save with maximum compression flags
+        optimizedPdf = await newDoc.save({
+          useObjectStreams: false,
           addDefaultPage: false,
-          useObjectStreams: false
+          objectsPerTick: 50
         });
         
         const originalSize = originalPdf.size;
-        const compressedSize = compressedPdf.length;
-        const reduction = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+        const optimizedSize = optimizedPdf.length;
+        const reduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
         
         sizeInfo.innerHTML = `
           <div style="font-size: 1.5em; margin: 10px 0;">${reduction}% smaller!</div>
-          <div>Original: ${(originalSize/1024/1024).toFixed(1)}MB → New: ${(compressedSize/1024/1024).toFixed(1)}MB</div>
+          <div>Original: ${(originalSize/1024/1024).toFixed(1)}MB → New: ${(optimizedSize/1024/1024).toFixed(1)}MB</div>
         `;
         
-        const blob = new Blob([compressedPdf], { type: 'application/pdf' });
+        const blob = new Blob([optimizedPdf], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         download.href = url;
-        download.download = `compressed-${Date.now()}.pdf`;
+        download.download = `optimized-${Date.now()}.pdf`;
         downloadLink.style.display = 'block';
         result.style.display = 'block';
         progressFill.style.width = '100%';
-        showStatus(`✅ Compressed ${reduction}% smaller!`, 'success');
+        showStatus(`✅ Optimized ${reduction}% smaller! Best for text PDFs.`, 'success');
         
       } catch (error) {
-        showStatus('❌ Compression failed. Try smaller PDF or refresh page.', 'error');
+        showStatus('❌ Failed. Try text-based PDFs (not image-heavy scans).', 'error');
         console.error('PDF Error:', error);
       } finally {
         compressBtn.disabled = false;
