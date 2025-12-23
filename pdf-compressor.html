@@ -41,16 +41,16 @@
 <body>
   <div class="container">
     <h1>📄 PDF Compressor</h1>
-    <p class="subtitle">Reduce PDF size by 50-80% instantly. Perfect for assignments, WhatsApp, email attachments. Max 10MB.</p>
+    <p class="subtitle">Reduce PDF size by 50-80% instantly. Perfect for assignments, WhatsApp, email. Max 10MB.</p>
     
     <input type="file" id="upload" accept="application/pdf">
     <label for="upload">📁 Click or drag PDF here</label>
     <div id="fileInfo"></div>
     
     <div class="compression-options">
-      <button class="compression-option active" data-quality="light">Light (20-30% smaller)</button>
-      <button class="compression-option" data-quality="medium">Medium (40-60% smaller)</button>
-      <button class="compression-option" data-quality="strong">Strong (60-80% smaller)</button>
+      <button class="compression-option active" data-scale="0.8">Light (20-30% smaller)</button>
+      <button class="compression-option" data-scale="0.6">Medium (40-60% smaller)</button>
+      <button class="compression-option" data-scale="0.4">Strong (60-80% smaller)</button>
     </div>
     
     <button id="compressBtn" disabled>✨ Compress PDF</button>
@@ -126,27 +126,36 @@
       result.style.display = 'none';
 
       try {
-        const quality = document.querySelector('.compression-option.active').dataset.quality;
-        const compressionFactors = { light: 1.2, medium: 1.5, strong: 2.0 };
-        const factor = compressionFactors[quality];
+        const scale = parseFloat(document.querySelector('.compression-option.active').dataset.scale);
 
         const arrayBuffer = await originalPdf.arrayBuffer();
         const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
         
-        progressFill.style.width = '50%';
+        progressFill.style.width = '30%';
 
-        // Copy pages with compression
+        // Create new document
         const newDoc = await PDFLib.PDFDocument.create();
-        const pages = await newDoc.copyPages(pdfDoc, pdfDoc.getPageIndices());
-        pages.forEach(page => newDoc.addPage(page));
-
-        // Embed fonts to reduce size
-        const fontBytes = await fetch('https://unpkg.com/pdf-lib@1.17.1/fonts/Helvetica-Bold.ttf').then(res => res.arrayBuffer());
-        const font = await newDoc.embedFont(fontBytes);
+        
+        // Copy all pages with scaling
+        const copiedPages = await newDoc.copyPages(pdfDoc, pdfDoc.getPageIndices());
+        copiedPages.forEach((page, index) => {
+          const scaledPage = newDoc.addPage([page.getWidth() * scale * 0.95, page.getHeight() * scale * 0.95]);
+          scaledPage.drawPage(page, {
+            x: 0,
+            y: 0,
+            width: scaledPage.getWidth(),
+            height: scaledPage.getHeight(),
+            preserveAspectRatio: true
+          });
+        });
 
         progressFill.style.width = '90%';
 
-        compressedPdf = await newDoc.save({ useObjectStreams: false });
+        // Save without object streams for compatibility
+        compressedPdf = await newDoc.save({
+          addDefaultPage: false,
+          useObjectStreams: false
+        });
         
         const originalSize = originalPdf.size;
         const compressedSize = compressedPdf.length;
@@ -160,18 +169,18 @@
         const blob = new Blob([compressedPdf], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         download.href = url;
-        download.download = `compressed-${originalPdf.name.replace('.pdf', '')}-${quality}.pdf`;
+        download.download = `compressed-${Date.now()}.pdf`;
         downloadLink.style.display = 'block';
         result.style.display = 'block';
         progressFill.style.width = '100%';
-        showStatus(`✅ ${quality} compression complete! ${reduction}% smaller.`, 'success');
+        showStatus(`✅ Compressed ${reduction}% smaller!`, 'success');
         
       } catch (error) {
-        showStatus('❌ Compression failed. Try a different file.', 'error');
-        console.error(error);
+        showStatus('❌ Compression failed. Try smaller PDF or refresh page.', 'error');
+        console.error('PDF Error:', error);
       } finally {
         compressBtn.disabled = false;
-        setTimeout(() => { progress.style.display = 'none'; progressFill.style.width = '0%'; }, 1000);
+        setTimeout(() => { progress.style.display = 'none'; progressFill.style.width = '0%'; }, 1500);
       }
     });
 
